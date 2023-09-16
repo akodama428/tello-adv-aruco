@@ -3,12 +3,17 @@ import time
 from cv2 import aruco
 from imutils.perspective import order_points
 import math
+import numpy as np
 
 # Setup the aruco marker detection
 aruco_dict = aruco.Dictionary_get(aruco.DICT_ARUCO_ORIGINAL)
 # aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
 
 aruco_params = aruco.DetectorParameters_create()
+
+# cascade_path = "haarcascade_frontalface_default.xml"
+cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+face_cascade = cv2.CascadeClassifier(cascade_path)
 
 def draw_center_point(image, center_color=(0,0,255)):
     """
@@ -38,6 +43,39 @@ def find_center_point(corners):
     center_y = (corners[0][1] + corners[2][1])//2
 
     return center_x, center_y
+
+def get_face_position(image):
+    corners = []
+    all_ordered_corners = []
+    all_center_points = []
+    all_corners = []
+    all_ids = []
+
+    # 顔検出
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, scaleFactor = 1.3, minNeighbors = 5, minSize = (50, 50))
+
+    if faces is not None:
+        for (x,y,w,h) in faces:
+            corner = []  # 顔ごとに新しい空のリストを作成
+            corner.append([x, y])
+            corner.append([x + w, y])
+            corner.append([x + w, y + h])
+            corner.append([x, y + h])
+            corners.append(corner)  # get_aruco_markersとリスト型を合わせるための処置
+            all_corners.append(np.array(corners))
+        for i, corner in enumerate(all_corners):
+            all_ids.append(i)
+            # print("corner")
+            # print(corner)
+            ordered_corners = order_points(corner[0])
+            # print("ordered corners")
+            # print(ordered_corners)
+            all_ordered_corners.append(ordered_corners)
+            center_pt_x, center_pt_y = find_center_point(ordered_corners)
+            all_center_points.append((int(center_pt_x), int(center_pt_y)))
+
+    return all_corners, all_ids, all_ordered_corners, all_center_points
 
 def get_aruco_markers(image, target_id=None):
 
@@ -70,7 +108,11 @@ def get_aruco_markers(image, target_id=None):
 
             all_corners.append(corner)
             all_ids.append(ids[i][0])
+            # print("corner")
+            # print(corner)
             ordered_corners = order_points(corner[0])
+            # print("ordered corners")
+            # print(ordered_corners)
             all_ordered_corners.append(ordered_corners)
             center_pt_x, center_pt_y = find_center_point(ordered_corners)
             all_center_points.append((int(center_pt_x), int(center_pt_y)))
@@ -136,6 +178,63 @@ def detect_markers_in_image(image, draw_reference_corner=True, draw_center=True,
         # return image, list(zip(center_pts, ids.flatten()))
         return image, list(zip(center_pts, ids))
 
+def detect_faces_in_image(image, draw_reference_corner=True, draw_center=True, target_id=None, draw_target_id=True, draw_border=True):
+    """
+
+    :param image: image to search for ArUco markers.  Draw bounding boxes.
+    :type image:
+    :param draw_reference_corner: Every ArUco marker has a reference corner which is the same no
+                                    matter the rotation of the marker.
+                                    True - find the reference corner and maker it
+                                    False - do not mark reference corner
+    :type draw_reference_corner: bool
+    :param target_id: ArUco ID to detect.  If None, then detect all markers.  if an
+                        id, then only the markers with the specified id will be detected
+    :type target_id:
+    :param draw_target_id: Flag to indicate whether the id should be added to the image.  Default - True
+    :type bool:
+    :param draw_border: Flag too indicate whether to draw the border around the marker. Defauilt - True
+    :type bool:
+    :return: image with all found markers highlighted, center dot, ID number added,
+                List for each Marker found. The list contains a tuple of the form: ((center_x,center_y),point_id)
+    :rtype: image, list
+    """
+    # corners, ids, ordered_corners, center_pts = get_aruco_markers(image)
+    corners, ids, ordered_corners, center_pts = get_face_position(image)
+    if len(ordered_corners) > 0:
+        # ids = ids.flatten()
+        for i, id in enumerate(ids):
+
+            if draw_border:
+                # Draw a rectangle around the aruco marker no matter the angular distortion
+                cv2.line(image, (int(ordered_corners[i][0][0]), int(ordered_corners[i][0][1])),
+                         (int(ordered_corners[i][1][0]), int(ordered_corners[i][1][1])), (0, 0, 255), 2)
+                cv2.line(image, (int(ordered_corners[i][1][0]), int(ordered_corners[i][1][1])),
+                         (int(ordered_corners[i][2][0]), int(ordered_corners[i][2][1])), (0, 0, 255), 2)
+                cv2.line(image, (int(ordered_corners[i][2][0]), int(ordered_corners[i][2][1])),
+                         (int(ordered_corners[i][3][0]), int(ordered_corners[i][3][1])), (0, 0, 255), 2)
+                cv2.line(image, (int(ordered_corners[i][3][0]), int(ordered_corners[i][3][1])),
+                         (int(ordered_corners[i][0][0]), int(ordered_corners[i][0][1])), (0, 0, 255), 2)
+
+            center_pt_x = center_pts[i][0]
+            center_pt_y = center_pts[i][1]
+
+            if draw_center:
+                cv2.circle(image, center=(center_pt_x, center_pt_y), radius=4, color=(0, 255, 0), thickness=-1)
+
+            if draw_target_id:
+                cv2.putText(image, f"ID: {id}", (int(center_pt_x), int(center_pt_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                        (0, 255, 0), 2, cv2.LINE_AA)  #
+
+            if draw_reference_corner:
+                corner_x_y = corners[i][0][0]
+                cv2.circle(image, center=(int(corner_x_y[0]), int(corner_x_y[1])), radius=8, color=(255, 0, 0), thickness=-1)
+
+    if ids is None:
+        return image, []
+    else:
+        # return image, list(zip(center_pts, ids.flatten()))
+        return image, list(zip(center_pts, ids))
 
 def detect_distance_from_image_center(image, selected_pt_x, selected_pt_y, show_detail=True, show_center_arrow=True, show_center=True):
     """
