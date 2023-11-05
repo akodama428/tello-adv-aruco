@@ -107,7 +107,8 @@ if __name__ == '__main__':
     # UserとChatGPTとの会話履歴を格納するリスト
     conversationHistory = []
     # setting = {"role": "system", "content": "句読点と読点を多く含めて応答するようにして下さい。また、1文あたりが長くならないようにして下さい。"}
-    setting = {"role": "system", "content": "あなたはドローンを制御する操縦士です。離陸してほしいとお願いされたら一言チャットで回答した後に「takeoff」をつけてださい"}
+    # setting = {"role": "system", "content": "あなたはドローンを制御する操縦士です。何かお願いされたら一言チャットで回答した後に、離陸してとお願いされた場合[takeoff]をつけて回答してください"}
+    setting = {"role": "system", "content": "あなたはドローンを制御する操縦士です。何かお願いされたら一言チャットで回答した後に、依頼された内容に応じて末尾にドローン操縦コマンド[takeoff][land][forward][backward][right][left][up][down]をつけてください。複数コマンドがある場合は、最後にまとめてください。"}
     conversationHistory.append(setting)
     # chat(conversationHistory)
     
@@ -124,7 +125,8 @@ if __name__ == '__main__':
     #######################
     # DroneSimulator初期化 #
     #######################
-    sim_key = 'de241945-b0a8-4151-b611-3d45fca5d99d'
+    # https://coding-sim.droneblocks.io/
+    sim_key = '4ff79232-ca72-4625-9638-ce97b64299e7'
     distance = 40
 
     # Ctrl-Cで中断されるまでChatGPT音声アシスタントを起動
@@ -148,11 +150,44 @@ if __name__ == '__main__':
                 conversationHistory.append(chatGPT_responce) 
                 # print(conversationHistory)
 
-                if res.count("takeoff") >0:
-                    drone.takeoff()
-                    drone.fly_forward(distance, 'in')
-                    drone.fly_left(distance, 'in')
-                    drone.fly_backward(distance, 'in')
-                    drone.fly_right(distance, 'in')
-                    drone.flip_backward()
-                    drone.land()
+                # if res.count("takeoff") >0:
+                #     drone.takeoff()
+                # elif res.count("forward") >0:
+                #     drone.fly_forward(distance, 'in')
+                # elif res.count("backward") >0:
+                #     drone.fly_backward(distance, 'in')
+                # elif res.count("left") >0:
+                #     drone.fly_left(distance, 'in')
+                # elif res.count("right") >0:
+                #     drone.fly_right(distance, 'in')
+                # elif res.count("up") >0:
+                #     drone.fly_up(distance, 'in')
+                # elif res.count("down") >0:
+                #     drone.fly_down(distance, 'in')
+                # elif res.count("land") >0:
+                #     drone.land()
+                command_functions = {
+                    "takeoff": lambda: drone.takeoff(),
+                    "forward": lambda: drone.fly_forward(distance, 'in'),
+                    "backward": lambda: drone.fly_backward(distance, 'in'),
+                    "left": lambda: drone.fly_left(distance, 'in'),
+                    "right": lambda: drone.fly_right(distance, 'in'),
+                    "up": lambda: drone.fly_up(distance, 'in'),
+                    "down": lambda: drone.fly_down(distance, 'in'),
+                    "land": lambda: drone.land()
+                }
+
+                # res内の単語を取得
+                # 正規表現を使用して[]や「」を区切り文字として利用
+                words = re.split(r'[ \[\]「」]', res)
+
+                # 空の文字列を除外
+                words = [word for word in words if word]
+                print(words)
+
+                # res内の単語の順番でコマンドを実行
+                for word in words:
+                    if word in command_functions:
+                        command = command_functions[word]
+                        command()
+                        print(word)
