@@ -62,7 +62,8 @@ def chat(conversationHistory):
         stop=None,
         presence_penalty=0.5,
         frequency_penalty=0.5,
-        model="gpt-3.5-turbo"
+        # model="gpt-3.5-turbo"
+        model="gpt-4"
     )
 
     # ストリーミングされたテキストを処理する
@@ -107,8 +108,13 @@ if __name__ == '__main__':
     # UserとChatGPTとの会話履歴を格納するリスト
     conversationHistory = []
     # setting = {"role": "system", "content": "句読点と読点を多く含めて応答するようにして下さい。また、1文あたりが長くならないようにして下さい。"}
-    # setting = {"role": "system", "content": "あなたはドローンを制御する操縦士です。何かお願いされたら一言チャットで回答した後に、離陸してとお願いされた場合[takeoff]をつけて回答してください"}
     setting = {"role": "system", "content": "あなたはドローンを制御する操縦士です。何かお願いされたら一言チャットで回答した後に、依頼された内容に応じて末尾にドローン操縦コマンド[takeoff][land][forward][backward][right][left][up][down]をつけてください。複数コマンドがある場合は、最後にまとめてください。"}
+    conversationHistory.append(setting)
+    setting = {"role": "system", "content": "ただし、１つのコマンドで進める距離は100センチです。ドローン初期位置を(0,0)として、左に進めばy座標を+100、右に進めばy座標を-100、前進すればx座標を+100、後退すればx座標を-100して自己位置を積算して推定してください"}
+    conversationHistory.append(setting)
+    setting = {"role": "system", "content": "例えば、ドローンをx座標＋100センチ移動させたい場合、forwardコマンドを１回送信してください。"}
+    conversationHistory.append(setting)
+    setting = {"role": "system", "content": "例えば、ドローンをy座標＋100センチ移動させたい場合、leftコマンドを１回送信してください。"}
     conversationHistory.append(setting)
     # chat(conversationHistory)
     
@@ -127,7 +133,7 @@ if __name__ == '__main__':
     #######################
     # https://coding-sim.droneblocks.io/
     sim_key = '4ff79232-ca72-4625-9638-ce97b64299e7'
-    distance = 40
+    distance = 100
 
     # Ctrl-Cで中断されるまでChatGPT音声アシスタントを起動
     while True:
@@ -168,12 +174,12 @@ if __name__ == '__main__':
                 #     drone.land()
                 command_functions = {
                     "takeoff": lambda: drone.takeoff(),
-                    "forward": lambda: drone.fly_forward(distance, 'in'),
-                    "backward": lambda: drone.fly_backward(distance, 'in'),
-                    "left": lambda: drone.fly_left(distance, 'in'),
-                    "right": lambda: drone.fly_right(distance, 'in'),
-                    "up": lambda: drone.fly_up(distance, 'in'),
-                    "down": lambda: drone.fly_down(distance, 'in'),
+                    "forward": lambda: drone.fly_forward(distance, 'cm'),
+                    "backward": lambda: drone.fly_backward(distance, 'cm'),
+                    "left": lambda: drone.fly_left(distance, 'cm'),
+                    "right": lambda: drone.fly_right(distance, 'cm'),
+                    "up": lambda: drone.fly_up(distance, 'cm'),
+                    "down": lambda: drone.fly_down(distance, 'cm'),
                     "land": lambda: drone.land()
                 }
 
