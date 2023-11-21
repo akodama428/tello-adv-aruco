@@ -4,6 +4,7 @@ import os
 import openai
 import pyttsx3
 import re
+from transcribe import SpeechToText
 
 ## 元ネタ
 ## https://qiita.com/Nekonun/items/2de0d5b3c77206c5ba31
@@ -11,37 +12,6 @@ import re
 ## ここにOpenAIのAPI Keyを入力
 ## https://platform.openai.com/account/api-keys
 OPENAI_API_KEY = "sk-***"
-
-##############
-# 音声認識関数 #
-##############
-def recognize_speech():
-
-    recognizer = sr.Recognizer()    
-    # Set timeout settings.
-    recognizer.dynamic_energy_threshold = False
-
-    
-    with sr.Microphone() as source:
-        recognizer.adjust_for_ambient_noise(source)
-    
-        while(True):
-            print(">> Please speak now...")
-            audio = recognizer.listen(source, timeout=1000.0)
-
-            try:
-                # Google Web Speech API を使って音声をテキストに変換
-                text = recognizer.recognize_google(audio, language="ja-JP")
-                print("[You]")
-                print(text)
-                return text
-            except sr.UnknownValueError:
-                print("Sorry, I could not understand what you said. Please speak again.")
-                #return ""
-            except sr.RequestError as e:
-                print(f"Could not request results; {e}")
-                #return ""
-
 
 #################################
 # Pyttsx3でレスポンス内容を読み上げ #
@@ -116,6 +86,10 @@ if __name__ == '__main__':
     conversationHistory.append(setting)
     setting = {"role": "system", "content": "例えば、ドローンをy座標＋100センチ移動させたい場合、leftコマンドを１回送信してください。"}
     conversationHistory.append(setting)
+    setting = {"role": "system", "content": "例えば、ドローンをy座標＋300センチ移動させたい場合、leftコマンドを3回送信してください。"}
+    conversationHistory.append(setting)
+    setting = {"role": "system", "content": "なお、交代と入力された場合、ここでは後退（バック）を意味しているので、ご注意ください"}
+    conversationHistory.append(setting)
     # chat(conversationHistory)
     
     ##################
@@ -132,15 +106,16 @@ if __name__ == '__main__':
     # DroneSimulator初期化 #
     #######################
     # https://coding-sim.droneblocks.io/
-    sim_key = '4ff79232-ca72-4625-9638-ce97b64299e7'
+    sim_key = '4e463f5f-c093-44c7-a147-d5413793a309'
     distance = 100
 
     # Ctrl-Cで中断されるまでChatGPT音声アシスタントを起動
+    speech_to_text = SpeechToText()
     while True:
         with DroneBlocksSimulatorContextManager(simulator_key=sim_key) as drone:
 
             # 音声認識関数の呼び出し
-            text = recognize_speech()
+            text = speech_to_text.excecute_speech_to_text_streaming()
 
             if text:
                 print(" >> Waiting for response from ChatGPT...")
